@@ -1,0 +1,60 @@
+# Build results
+bin
+obj
+
+# User-specific files
+.user
+.suo
+.userosscache
+.sln.docstates
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# DotCover
+.dotCover
+
+# NCrunch
+.ncrunch
+.crunch.local.xml
+
+# MSTest test Results
+TestResults
+
+# Visual Studio Code settings
+.vscode
+
+# Rider
+.idea
+.sln.iml
+
+# IIS Express
+.vs
+.vsconfig
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# User-specific files
+.rsuser
+
+# Others
+.log
+
+# Paketpaket manager artifacts
+packages
+.nupkg
+.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts
+
+# Build directories
+build
+out
+publish
+
+# NuGet
+.nupkg
+.nuget
