@@ -27,7 +27,20 @@ namespace BidFlow.Api.Controllers
         public async Task<IActionResult> Register(RegisterDto dto)
         {
             if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
-                return BadRequest("Email already exists");
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Email already exists",
+                    error = "EMAIL_ALREADY_EXISTS"
+                });
+
+            if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Username already exists",
+                    error = "USERNAME_ALREADY_EXISTS"
+                });
 
             var user = new User
             {
@@ -38,18 +51,58 @@ namespace BidFlow.Api.Controllers
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
-            return Ok("User created");
+
+            return Ok(new
+            {
+                success = true,
+                message = "User created successfully",
+                data = new
+                {
+                    user = new
+                    {
+                        id = user.Id,
+                        username = user.Username,
+                        email = user.Email,
+                        isPro = user.IsPro,
+                        isAdmin = user.IsAdmin
+                    }
+                }
+            });
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto dto)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+
             if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                return Unauthorized("Invalid credentials");
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Invalid credentials",
+                    error = "INVALID_CREDENTIALS"
+                });
 
             var token = GenerateJwtToken(user);
-            return Ok(new { token });
+
+            return Ok(new
+            {
+                success = true,
+                message = "Login successful",
+                data = new
+                {
+                    token = token,
+                    user = new
+                    {
+                        id = user.Id,
+                        username = user.Username,
+                        email = user.Email,
+                        role = user.IsAdmin ? "Admin" : (user.IsPro ? "Pro" : "User"),
+                        isPro = user.IsPro,
+                        isAdmin = user.IsAdmin
+                    }
+                }
+            });
         }
 
         private string GenerateJwtToken(User user)
@@ -61,7 +114,6 @@ namespace BidFlow.Api.Controllers
                 new Claim("UserId", user.Id.ToString()),
                 new Claim("IsAdmin", user.IsAdmin.ToString()),
                 new Claim("IsPro", user.IsPro.ToString()),
-                
                 new Claim(ClaimTypes.Role, user.IsAdmin ? "Admin" : (user.IsPro ? "Pro" : "User"))
             };
 
