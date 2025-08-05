@@ -1,16 +1,32 @@
-﻿namespace BidFlow.Entities
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace BidFlow.Entities
 {
-    public class User
+    public class User : AuditableEntity
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
+        [Required]
+        [MaxLength(100)]
+        public string Username { get; set; } = string.Empty;
 
-        public string Username { get; set; } 
-        public string Email { get; set; }    
-        public string PasswordHash { get; set; }
+        [Required]
+        [MaxLength(255)]
+        public string Email { get; set; } = string.Empty;
 
-        public bool IsPro { get; set; } = false;
-        public bool IsAdmin { get; set; } = false;
+        [Required]
+        [MaxLength(255)]
+        public string PasswordHash { get; set; } = string.Empty;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [MaxLength(50)]
+        public string? FirstName { get; set; }
+
+        [MaxLength(50)]
+        public string? LastName { get; set; }
+
+        public bool IsActive { get; set; } = true;
+
+        public DateTime? LastLoginAt { get; set; }
+
+        
+        public virtual ICollection<UserActivityLog> ActivityLogs { get; set; } = new List<UserActivityLog>();
     }
 }

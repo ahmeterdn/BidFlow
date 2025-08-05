@@ -1,15 +1,31 @@
-﻿namespace BidFlow.Entities
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+
+namespace BidFlow.Entities
 {
-    public class UserActivityLog
+    public class UserActivityLog : BaseEntity
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public Guid PerformedByUserId { get; set; }  // Admin ID
-        public Guid TargetUserId { get; set; }       // Üzerinde işlem yapılan kullanıcı
-        public string Action { get; set; }           // Create, Update, Delete
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        [Required]
+        public int UserId { get; set; }
 
+        [Required]
+        [MaxLength(100)]
+        public string Action { get; set; } = string.Empty;
 
-        public User PerformedByUser { get; set; }
-        public User TargetUser { get; set; }
+        [MaxLength(500)]
+        public string? Description { get; set; }
+
+        [MaxLength(45)]
+        public string? IpAddress { get; set; }
+
+        [MaxLength(500)]
+        public string? UserAgent { get; set; }
+
+        [Required]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        
+        [ForeignKey(nameof(UserId))]
+        public virtual User User { get; set; } = null!;
     }
 }
