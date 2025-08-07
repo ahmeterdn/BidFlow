@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using FluentValidation;
+using BidFlow.Services;
 using BidFlow.DTOs.Auth;
 using BidFlow.Common;
-using BidFlow.Services;
-using FluentValidation;
-using Microsoft.AspNetCore.Authorization;
 
 namespace BidFlow.Api.Controllers
 {

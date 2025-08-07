@@ -11,7 +11,6 @@ namespace BidFlow.Services
         private readonly Dictionary<Type, object> _repositories;
         private IDbContextTransaction? _transaction;
 
-        // Lazy loading repositories
         private IRepository<User>? _users;
         private IRepository<UserActivityLog>? _userActivityLogs;
 
