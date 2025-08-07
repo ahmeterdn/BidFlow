@@ -1,117 +1,162 @@
-﻿using BidFlow.Api.Data;
-using BidFlow.Entities;
+﻿using BidFlow.Common;
+using BidFlow.DTOs.Common;
+using BidFlow.DTOs.User;
+using BidFlow.Services;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BidFlow.Controllers
 {
-    [Authorize(Roles = "Admin")]
     [ApiController]
-    [Route("api/admin/users")]
+    [Route("api/admin/[controller]")]
+    [Authorize]
     public class AdminUsersController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IUserService _userService;
+        private readonly IValidator<CreateUserDto> _createUserValidator;
+        private readonly IValidator<UpdateUserDto> _updateUserValidator;
 
-        public AdminUsersController(ApplicationDbContext context)
+        public AdminUsersController(
+            IUserService userService,
+            IValidator<CreateUserDto> createUserValidator,
+            IValidator<UpdateUserDto> updateUserValidator)
         {
-            _context = context;
+            _userService = userService;
+            _createUserValidator = createUserValidator;
+            _updateUserValidator = updateUserValidator;
         }
 
-        
         [HttpGet]
-        public async Task<IActionResult> GetAllUsers()
+        public async Task<IActionResult> GetUsers([FromQuery] PaginationRequestDto request)
         {
-            var users = await _context.Users.ToListAsync();
-            return Ok(users);
+            var result = await _userService.GetPagedAsync(request);
+            return result.ToActionResult();
         }
 
-        
-        [HttpPost]
-        public async Task<IActionResult> CreateUser(User user)
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetUser(int id)
         {
-            user.Id = Guid.NewGuid();
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+            var result = await _userService.GetByIdAsync(id);
 
-            _context.Users.Add(user);
-            await LogAction("Create", user.Id);
-            await _context.SaveChangesAsync();
-            return Ok(user);
-        }
-
-        
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateUser(Guid id, User updated)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound();
-
-            user.Email = updated.Email;
-            user.Username = updated.Username;
-            user.IsAdmin = updated.IsAdmin;
-            user.IsPro = updated.IsPro;
-            
-            if (!string.IsNullOrWhiteSpace(updated.PasswordHash))
-                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(updated.PasswordHash);
-
-            await LogAction("Update", id);
-            await _context.SaveChangesAsync();
-            return Ok(user);
-        }
-
-        
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(Guid id)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound();
-
-            _context.Users.Remove(user);
-            await LogAction("Delete", id);
-            await _context.SaveChangesAsync();
-            return Ok();
-        }
-
-        [HttpGet("logs")]
-        public async Task<IActionResult> GetUserActivityLogs()
-        {
-            var logs = await _context.UserActivityLogs
-                .Include(l => l.PerformedByUser)
-                .Include(l => l.TargetUser)
-                .OrderByDescending(l => l.Timestamp)
-                .Select(l => new
-                {
-                    LogId = l.Id,
-                    Action = l.Action,
-                    Timestamp = l.Timestamp,
-                    PerformedBy = new
-                    {
-                        l.PerformedByUser.Id,
-                        l.PerformedByUser.Username,
-                        l.PerformedByUser.Email
-                    },
-                    TargetUser = new
-                    {
-                        l.TargetUser.Id,
-                        l.TargetUser.Username,
-                        l.TargetUser.Email
-                    }
-                })
-                .ToListAsync();
-
-            return Ok(logs);
-        }
-
-
-        private async Task LogAction(string action, Guid targetUserId)
-        {
-            var performedById = Guid.Parse(User.Claims.First(c => c.Type == "UserId").Value);
-            _context.UserActivityLogs.Add(new UserActivityLog
+            if (!result.IsSuccess)
             {
-                Action = action,
-                PerformedByUserId = performedById,
-                TargetUserId = targetUserId
-            });
+                return result.ToNotFoundResult();
+            }
+
+            return result.ToActionResult();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserDto createUserDto)
+        {
+            var validationResult = await _createUserValidator.ValidateAsync(createUserDto);
+            if (!validationResult.IsValid)
+            {
+                var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+                var result = Result<CreateUserDto>.Failure(ErrorMessages.ValidationFailed, errors);
+                return result.ToActionResult();
+            }
+
+            var createResult = await _userService.CreateAsync(createUserDto);
+
+            if (createResult.IsSuccess)
+            {
+                return createResult.ToCreatedResult($"/api/admin/adminusers/{createResult.Data?.Id}");
+            }
+
+            return createResult.ToActionResult();
+        }
+
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto updateUserDto)
+        {
+            var validationResult = await _updateUserValidator.ValidateAsync(updateUserDto);
+            if (!validationResult.IsValid)
+            {
+                var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+                var result = Result<UpdateUserDto>.Failure(ErrorMessages.ValidationFailed, errors);
+                return result.ToActionResult();
+            }
+
+            var updateResult = await _userService.UpdateAsync(id, updateUserDto);
+
+            if (!updateResult.IsSuccess && updateResult.Message == ErrorMessages.NotFound)
+            {
+                return updateResult.ToNotFoundResult();
+            }
+
+            return updateResult.ToActionResult();
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var deleteResult = await _userService.DeleteAsync(id);
+
+            if (!deleteResult.IsSuccess && deleteResult.Message == ErrorMessages.NotFound)
+            {
+                return deleteResult.ToNotFoundResult();
+            }
+
+            return deleteResult.ToActionResult();
+        }
+
+        [HttpPatch("{id:int}/activate")]
+        public async Task<IActionResult> ActivateUser(int id)
+        {
+            var activateResult = await _userService.ActivateUserAsync(id);
+
+            if (!activateResult.IsSuccess && activateResult.Message == ErrorMessages.UserNotFound)
+            {
+                return activateResult.ToNotFoundResult();
+            }
+
+            return activateResult.ToActionResult();
+        }
+
+        [HttpPatch("{id:int}/deactivate")]
+        public async Task<IActionResult> DeactivateUser(int id)
+        {
+            var deactivateResult = await _userService.DeactivateUserAsync(id);
+
+            if (!deactivateResult.IsSuccess && deactivateResult.Message == ErrorMessages.UserNotFound)
+            {
+                return deactivateResult.ToNotFoundResult();
+            }
+
+            return deactivateResult.ToActionResult();
+        }
+
+        [HttpGet("check-username/{username}")]
+        public async Task<IActionResult> CheckUsername(string username)
+        {
+            var result = await _userService.IsUsernameExistsAsync(username);
+            return result.ToActionResult();
+        }
+
+        [HttpGet("check-email/{email}")]
+        public async Task<IActionResult> CheckEmail(string email)
+        {
+            var result = await _userService.IsEmailExistsAsync(email);
+            return result.ToActionResult();
+        }
+
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchUsers(
+            [FromQuery] string searchTerm,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var request = new PaginationRequestDto
+            {
+                SearchTerm = searchTerm,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _userService.GetPagedAsync(request);
+            return result.ToActionResult();
         }
     }
 }
