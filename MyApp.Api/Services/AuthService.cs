@@ -159,8 +159,19 @@ namespace BidFlow.Services
                     return Result<string>.Failure(ErrorMessages.UserNotFound);
                 }
 
+                var jwtKey = _configuration["Jwt:Key"];
+                if (string.IsNullOrEmpty(jwtKey))
+                {
+                    return Result<string>.Failure("JWT Key is not configured in appsettings.json");
+                }
+
+                if (jwtKey.Length < 32)
+                {
+                    return Result<string>.Failure("JWT Key must be at least 32 characters long");
+                }
+
                 var tokenHandler = new JwtSecurityTokenHandler();
-                var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!);
+                var key = Encoding.UTF8.GetBytes(jwtKey);
 
                 var claims = new List<Claim>
                 {
@@ -181,7 +192,7 @@ namespace BidFlow.Services
                 var token = tokenHandler.CreateToken(tokenDescriptor);
                 var tokenString = tokenHandler.WriteToken(token);
 
-                return Result<string>.Success(tokenString);
+                return Result<string>.Success(tokenString, "Token generated successfully");
             }
             catch (Exception ex)
             {

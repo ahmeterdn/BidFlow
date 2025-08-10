@@ -8,6 +8,7 @@ using BidFlow.Repositories;
 using BidFlow.Services;
 using FluentValidation;
 using BidFlow.Api.Data;
+using AutoMapper;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,7 +40,9 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-builder.Services.AddAutoMapper(typeof(MappingProfile));
+builder.Services.AddAutoMapper(cfg => {
+    cfg.AddProfile<MappingProfile>();
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
