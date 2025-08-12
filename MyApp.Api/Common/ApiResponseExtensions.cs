@@ -11,8 +11,7 @@ namespace BidFlow.Common
                 return new OkObjectResult(new
                 {
                     success = result.IsSuccess,
-                    message = result.Message,
-                    timestamp = DateTime.UtcNow
+                    message = result.Message
                 });
             }
 
@@ -20,8 +19,7 @@ namespace BidFlow.Common
             {
                 success = result.IsSuccess,
                 message = result.Message,
-                errors = result.Errors,
-                timestamp = DateTime.UtcNow
+                errors = result.Errors
             });
         }
 
@@ -33,8 +31,7 @@ namespace BidFlow.Common
                 {
                     success = result.IsSuccess,
                     message = result.Message,
-                    data = result.Data,
-                    timestamp = DateTime.UtcNow
+                    data = result.Data
                 });
             }
 
@@ -42,8 +39,7 @@ namespace BidFlow.Common
             {
                 success = result.IsSuccess,
                 message = result.Message,
-                errors = result.Errors,
-                timestamp = DateTime.UtcNow
+                errors = result.Errors
             });
         }
 
@@ -64,8 +60,83 @@ namespace BidFlow.Common
                         totalPages = result.TotalPages,
                         hasPreviousPage = result.HasPreviousPage,
                         hasNextPage = result.HasNextPage
+                    }
+                });
+            }
+
+            return new BadRequestObjectResult(new
+            {
+                success = result.IsSuccess,
+                message = result.Message,
+                errors = result.Errors
+            });
+        }
+
+        public static IActionResult ToAdminActionResult(this Result result)
+        {
+            if (result.IsSuccess)
+            {
+                return new OkObjectResult(new
+                {
+                    success = result.IsSuccess,
+                    message = result.Message,
+                    timestamp = DateTime.UtcNow,
+                    serverInfo = new { environment = "development" }
+                });
+            }
+
+            return new BadRequestObjectResult(new
+            {
+                success = result.IsSuccess,
+                message = result.Message,
+                errors = result.Errors,
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        public static IActionResult ToAdminActionResult<T>(this Result<T> result)
+        {
+            if (result.IsSuccess)
+            {
+                return new OkObjectResult(new
+                {
+                    success = result.IsSuccess,
+                    message = result.Message,
+                    data = result.Data,
+                    timestamp = DateTime.UtcNow,
+                    serverInfo = new { environment = "development" }
+                });
+            }
+
+            return new BadRequestObjectResult(new
+            {
+                success = result.IsSuccess,
+                message = result.Message,
+                errors = result.Errors,
+                timestamp = DateTime.UtcNow
+            });
+        }
+
+        public static IActionResult ToAdminActionResult<T>(this PaginatedResult<T> result)
+        {
+            if (result.IsSuccess)
+            {
+                return new OkObjectResult(new
+                {
+                    success = result.IsSuccess,
+                    message = result.Message,
+                    data = result.Data,
+                    pagination = new
+                    {
+                        pageNumber = result.PageNumber,
+                        pageSize = result.PageSize,
+                        totalCount = result.TotalCount,
+                        totalPages = result.TotalPages,
+                        hasPreviousPage = result.HasPreviousPage,
+                        hasNextPage = result.HasNextPage
                     },
-                    timestamp = DateTime.UtcNow
+                    timestamp = DateTime.UtcNow,
+                    serverInfo = new { environment = "development", action = "paginated_query" }
                 });
             }
 
@@ -86,8 +157,7 @@ namespace BidFlow.Common
                 {
                     success = result.IsSuccess,
                     message = result.Message,
-                    data = result.Data,
-                    timestamp = DateTime.UtcNow
+                    data = result.Data
                 });
             }
 
@@ -95,8 +165,7 @@ namespace BidFlow.Common
             {
                 success = result.IsSuccess,
                 message = result.Message,
-                errors = result.Errors,
-                timestamp = DateTime.UtcNow
+                errors = result.Errors
             });
         }
 
@@ -106,8 +175,7 @@ namespace BidFlow.Common
             {
                 success = false,
                 message = result.Message,
-                errors = result.Errors,
-                timestamp = DateTime.UtcNow
+                errors = result.Errors
             });
         }
 
@@ -117,8 +185,7 @@ namespace BidFlow.Common
             {
                 success = false,
                 message = result.Message,
-                errors = result.Errors,
-                timestamp = DateTime.UtcNow
+                errors = result.Errors
             });
         }
     }

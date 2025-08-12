@@ -4,17 +4,39 @@ using BidFlow.DTOs.User;
 using BidFlow.Entities;
 using System.Linq.Expressions;
 using BCrypt.Net;
+using BidFlow.DTOs.Admin;
+using BidFlow.DTOs.Auth;
 
 namespace BidFlow.Services
 {
-    public class UserService : BaseService<User, UserResponseDto, CreateUserDto, UpdateUserDto>, IUserService
+    public class UserService : BaseService<User, AdminUserDto, CreateUserDto, UpdateUserDto>, IUserService
     {
         public UserService(IUnitOfWork unitOfWork, IMapper mapper)
             : base(unitOfWork, mapper)
         {
         }
 
-        public async Task<Result<UserResponseDto>> GetByUsernameAsync(string username)
+        public async Task<Result<AuthUserDto>> GetAuthUserByIdAsync(int id)
+        {
+            try
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(id);
+
+                if (user == null)
+                {
+                    return Result<AuthUserDto>.Failure(ErrorMessages.UserNotFound);
+                }
+
+                var authUserDto = _mapper.Map<AuthUserDto>(user);
+                return Result<AuthUserDto>.Success(authUserDto, SuccessMessages.DataRetrieved);
+            }
+            catch (Exception ex)
+            {
+                return Result<AuthUserDto>.Failure($"Error retrieving auth user: {ex.Message}");
+            }
+        }
+
+        public async Task<Result<AuthUserDto>> GetAuthUserByUsernameAsync(string username)
         {
             try
             {
@@ -22,19 +44,19 @@ namespace BidFlow.Services
 
                 if (user == null)
                 {
-                    return Result<UserResponseDto>.Failure(ErrorMessages.UserNotFound);
+                    return Result<AuthUserDto>.Failure(ErrorMessages.UserNotFound);
                 }
 
-                var userDto = _mapper.Map<UserResponseDto>(user);
-                return Result<UserResponseDto>.Success(userDto, SuccessMessages.DataRetrieved);
+                var authUserDto = _mapper.Map<AuthUserDto>(user);
+                return Result<AuthUserDto>.Success(authUserDto, SuccessMessages.DataRetrieved);
             }
             catch (Exception ex)
             {
-                return Result<UserResponseDto>.Failure($"Error retrieving user by username: {ex.Message}");
+                return Result<AuthUserDto>.Failure($"Error retrieving auth user by username: {ex.Message}");
             }
         }
 
-        public async Task<Result<UserResponseDto>> GetByEmailAsync(string email)
+        public async Task<Result<AuthUserDto>> GetAuthUserByEmailAsync(string email)
         {
             try
             {
@@ -42,15 +64,55 @@ namespace BidFlow.Services
 
                 if (user == null)
                 {
-                    return Result<UserResponseDto>.Failure(ErrorMessages.UserNotFound);
+                    return Result<AuthUserDto>.Failure(ErrorMessages.UserNotFound);
                 }
 
-                var userDto = _mapper.Map<UserResponseDto>(user);
-                return Result<UserResponseDto>.Success(userDto, SuccessMessages.DataRetrieved);
+                var authUserDto = _mapper.Map<AuthUserDto>(user);
+                return Result<AuthUserDto>.Success(authUserDto, SuccessMessages.DataRetrieved);
             }
             catch (Exception ex)
             {
-                return Result<UserResponseDto>.Failure($"Error retrieving user by email: {ex.Message}");
+                return Result<AuthUserDto>.Failure($"Error retrieving auth user by email: {ex.Message}");
+            }
+        }
+
+        public async Task<Result<PublicUserDto>> GetPublicUserByIdAsync(int id)
+        {
+            try
+            {
+                var user = await _unitOfWork.Users.GetAsync(u => u.Id == id && u.IsActive);
+
+                if (user == null)
+                {
+                    return Result<PublicUserDto>.Failure(ErrorMessages.UserNotFound);
+                }
+
+                var publicUserDto = _mapper.Map<PublicUserDto>(user);
+                return Result<PublicUserDto>.Success(publicUserDto, SuccessMessages.DataRetrieved);
+            }
+            catch (Exception ex)
+            {
+                return Result<PublicUserDto>.Failure($"Error retrieving public user: {ex.Message}");
+            }
+        }
+
+        public async Task<Result<PublicUserDto>> GetPublicUserByUsernameAsync(string username)
+        {
+            try
+            {
+                var user = await _unitOfWork.Users.GetAsync(u => u.Username == username && u.IsActive);
+
+                if (user == null)
+                {
+                    return Result<PublicUserDto>.Failure(ErrorMessages.UserNotFound);
+                }
+
+                var publicUserDto = _mapper.Map<PublicUserDto>(user);
+                return Result<PublicUserDto>.Success(publicUserDto, SuccessMessages.DataRetrieved);
+            }
+            catch (Exception ex)
+            {
+                return Result<PublicUserDto>.Failure($"Error retrieving public user by username: {ex.Message}");
             }
         }
 
@@ -91,7 +153,6 @@ namespace BidFlow.Services
                     return Result.Failure(ErrorMessages.UserNotFound);
                 }
 
-                // Password hash'leme işlemi - BCrypt kullanabilirsiniz
                 user.PasswordHash = HashPassword(newPassword);
 
                 _unitOfWork.Users.Update(user);
@@ -177,22 +238,20 @@ namespace BidFlow.Services
             }
         }
 
-        // CreateAsync override - validation ekleyebiliriz
-        public override async Task<Result<UserResponseDto>> CreateAsync(CreateUserDto createDto)
+        public async Task<Result<AdminUserDto>> CreateUserForAdminAsync(CreateUserDto createDto)
         {
             try
             {
-                // Username ve Email kontrolü
                 var usernameExists = await IsUsernameExistsAsync(createDto.Username);
                 if (usernameExists.IsSuccess && usernameExists.Data)
                 {
-                    return Result<UserResponseDto>.Failure(ErrorMessages.UsernameAlreadyExists);
+                    return Result<AdminUserDto>.Failure(ErrorMessages.UsernameAlreadyExists);
                 }
 
                 var emailExists = await IsEmailExistsAsync(createDto.Email);
                 if (emailExists.IsSuccess && emailExists.Data)
                 {
-                    return Result<UserResponseDto>.Failure(ErrorMessages.EmailAlreadyExists);
+                    return Result<AdminUserDto>.Failure(ErrorMessages.EmailAlreadyExists);
                 }
 
                 var user = _mapper.Map<User>(createDto);
@@ -201,16 +260,20 @@ namespace BidFlow.Services
                 var createdUser = await _unitOfWork.Users.AddAsync(user);
                 await _unitOfWork.SaveChangesAsync();
 
-                var userDto = _mapper.Map<UserResponseDto>(createdUser);
-                return Result<UserResponseDto>.Success(userDto, SuccessMessages.UserCreated);
+                var adminUserDto = _mapper.Map<AdminUserDto>(createdUser);
+                return Result<AdminUserDto>.Success(adminUserDto, SuccessMessages.UserCreated);
             }
             catch (Exception ex)
             {
-                return Result<UserResponseDto>.Failure($"Error creating user: {ex.Message}");
+                return Result<AdminUserDto>.Failure($"Error creating user: {ex.Message}");
             }
         }
 
-        // BaseService abstract methods implementation
+        public override async Task<Result<AdminUserDto>> CreateAsync(CreateUserDto createDto)
+        {
+            return await CreateUserForAdminAsync(createDto);
+        }
+
         protected override Expression<Func<User, bool>>? BuildSearchPredicate(string searchTerm)
         {
             if (string.IsNullOrEmpty(searchTerm))
@@ -238,15 +301,9 @@ namespace BidFlow.Services
             };
         }
 
-        
         private string HashPassword(string password)
         {
             return BCrypt.Net.BCrypt.HashPassword(password, BCrypt.Net.BCrypt.GenerateSalt(12));
-        }
-
-        private bool VerifyPassword(string password, string hashedPassword)
-        {
-            return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
         }
 
     }

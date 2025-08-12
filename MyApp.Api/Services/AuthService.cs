@@ -58,13 +58,22 @@ namespace BidFlow.Services
 
                 await _userService.UpdateLastLoginAsync(user.Id);
 
-                var userDto = _mapper.Map<UserResponseDto>(user);
+                var authUserDto = new AuthUserDto
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    IsActive = user.IsActive
+                };
+
                 var loginResponse = new LoginResponseDto
                 {
                     Token = tokenResult.Data!,
                     RefreshToken = GenerateRefreshToken(),
                     ExpiresAt = DateTime.UtcNow.AddHours(GetTokenExpiryHours()),
-                    User = userDto
+                    User = authUserDto
                 };
 
                 return Result<LoginResponseDto>.Success(loginResponse, SuccessMessages.LoginSuccessful);
@@ -75,20 +84,20 @@ namespace BidFlow.Services
             }
         }
 
-        public async Task<Result<LoginResponseDto>> RegisterAsync(RegisterDto registerDto)
+        public async Task<Result<RegisterResponseDto>> RegisterAsync(RegisterDto registerDto)
         {
             try
             {
                 var usernameExists = await _userService.IsUsernameExistsAsync(registerDto.Username);
                 if (usernameExists.IsSuccess && usernameExists.Data)
                 {
-                    return Result<LoginResponseDto>.Failure(ErrorMessages.UsernameAlreadyExists);
+                    return Result<RegisterResponseDto>.Failure(ErrorMessages.UsernameAlreadyExists);
                 }
 
                 var emailExists = await _userService.IsEmailExistsAsync(registerDto.Email);
                 if (emailExists.IsSuccess && emailExists.Data)
                 {
-                    return Result<LoginResponseDto>.Failure(ErrorMessages.EmailAlreadyExists);
+                    return Result<RegisterResponseDto>.Failure(ErrorMessages.EmailAlreadyExists);
                 }
 
                 var user = _mapper.Map<User>(registerDto);
@@ -101,23 +110,33 @@ namespace BidFlow.Services
                 var tokenResult = await GenerateTokenAsync(createdUser.Id);
                 if (!tokenResult.IsSuccess)
                 {
-                    return Result<LoginResponseDto>.Failure("Token generation failed");
+                    return Result<RegisterResponseDto>.Failure("Token generation failed");
                 }
 
-                var userDto = _mapper.Map<UserResponseDto>(createdUser);
-                var loginResponse = new LoginResponseDto
+                var authUserDto = new AuthUserDto
+                {
+                    Id = createdUser.Id,
+                    Username = createdUser.Username,
+                    Email = createdUser.Email,
+                    FirstName = createdUser.FirstName,
+                    LastName = createdUser.LastName,
+                    IsActive = createdUser.IsActive
+                };
+
+                var registerResponse = new RegisterResponseDto
                 {
                     Token = tokenResult.Data!,
                     RefreshToken = GenerateRefreshToken(),
                     ExpiresAt = DateTime.UtcNow.AddHours(GetTokenExpiryHours()),
-                    User = userDto
+                    User = authUserDto,
+                    WelcomeMessage = "Welcome! Your account has been created successfully."
                 };
 
-                return Result<LoginResponseDto>.Success(loginResponse, SuccessMessages.UserCreated);
+                return Result<RegisterResponseDto>.Success(registerResponse, SuccessMessages.UserCreated);
             }
             catch (Exception ex)
             {
-                return Result<LoginResponseDto>.Failure($"Registration failed: {ex.Message}");
+                return Result<RegisterResponseDto>.Failure($"Registration failed: {ex.Message}");
             }
         }
 
@@ -126,9 +145,6 @@ namespace BidFlow.Services
             try
             {
                 // Basit logout - gerçek uygulamada token'ı blacklist'e ekleyebiliriz
-                // Şimdilik sadece success döndürüyoruz
-
-                // Activity log eklenebilir
                 var activityLog = new UserActivityLog
                 {
                     UserId = userId,
@@ -204,10 +220,7 @@ namespace BidFlow.Services
         {
             try
             {
-                // Basit refresh token implementation
                 // Gerçek uygulamada refresh token'ları database'de saklayıp validate edilmeli
-
-                // Şimdilik placeholder
                 return Result<LoginResponseDto>.Failure("Refresh token functionality not implemented");
             }
             catch (Exception ex)
@@ -241,6 +254,18 @@ namespace BidFlow.Services
             catch (Exception ex)
             {
                 return Result.Failure($"Password change failed: {ex.Message}");
+            }
+        }
+
+        public async Task<Result<AuthUserDto>> GetProfileAsync(int userId)
+        {
+            try
+            {
+                return await _userService.GetAuthUserByIdAsync(userId);
+            }
+            catch (Exception ex)
+            {
+                return Result<AuthUserDto>.Failure($"Error getting profile: {ex.Message}");
             }
         }
 

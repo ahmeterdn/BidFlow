@@ -55,7 +55,6 @@ namespace BidFlow.Api.Controllers
             return registerResult.ToCreatedResult("/api/auth/profile");
         }
 
-        
         [HttpPost("logout")]
         [Authorize]
         public async Task<IActionResult> Logout()
@@ -71,7 +70,6 @@ namespace BidFlow.Api.Controllers
             return logoutResult.ToActionResult();
         }
 
-       
         [HttpPost("change-password")]
         [Authorize]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto changePasswordDto)
@@ -101,14 +99,9 @@ namespace BidFlow.Api.Controllers
                 var result = Result.Failure(ErrorMessages.InvalidToken);
                 return result.ToUnauthorizedResult();
             }
- 
-            return Ok(new
-            {
-                success = true,
-                message = "Profile endpoint - implementation needed",
-                userId = userId,
-                timestamp = DateTime.UtcNow
-            });
+
+            var profileResult = await _authService.GetProfileAsync(userId);
+            return profileResult.ToActionResult();
         }
 
         [HttpPost("refresh")]

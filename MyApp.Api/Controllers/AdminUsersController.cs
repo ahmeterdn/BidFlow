@@ -16,22 +16,33 @@ namespace BidFlow.Controllers
         private readonly IUserService _userService;
         private readonly IValidator<CreateUserDto> _createUserValidator;
         private readonly IValidator<UpdateUserDto> _updateUserValidator;
+        private readonly IValidator<PaginationRequestDto> _paginationValidator;
 
         public AdminUsersController(
             IUserService userService,
             IValidator<CreateUserDto> createUserValidator,
-            IValidator<UpdateUserDto> updateUserValidator)
+            IValidator<UpdateUserDto> updateUserValidator,
+            IValidator<PaginationRequestDto> paginationValidator)
         {
             _userService = userService;
             _createUserValidator = createUserValidator;
             _updateUserValidator = updateUserValidator;
+            _paginationValidator = paginationValidator;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetUsers([FromQuery] PaginationRequestDto request)
         {
-            var result = await _userService.GetPagedAsync(request);
-            return result.ToActionResult();
+            var validationResult = await _paginationValidator.ValidateAsync(request);
+            if (!validationResult.IsValid)
+            {
+                var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+                var result = Result<PaginationRequestDto>.Failure(ErrorMessages.ValidationFailed, errors);
+                return result.ToAdminActionResult();
+            }
+
+            var getUsersResult = await _userService.GetPagedAsync(request);
+            return getUsersResult.ToAdminActionResult();
         }
 
         [HttpGet("{id:int}")]
@@ -41,10 +52,16 @@ namespace BidFlow.Controllers
 
             if (!result.IsSuccess)
             {
-                return result.ToNotFoundResult();
+                return new NotFoundObjectResult(new
+                {
+                    success = false,
+                    message = result.Message,
+                    errors = result.Errors,
+                    timestamp = DateTime.UtcNow
+                });
             }
 
-            return result.ToActionResult();
+            return result.ToAdminActionResult();
         }
 
         [HttpPost]
@@ -55,17 +72,24 @@ namespace BidFlow.Controllers
             {
                 var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
                 var result = Result<CreateUserDto>.Failure(ErrorMessages.ValidationFailed, errors);
-                return result.ToActionResult();
+                return result.ToAdminActionResult();
             }
 
-            var createResult = await _userService.CreateAsync(createUserDto);
+            var createResult = await _userService.CreateUserForAdminAsync(createUserDto);
 
             if (createResult.IsSuccess)
             {
-                return createResult.ToCreatedResult($"/api/admin/adminusers/{createResult.Data?.Id}");
+                return new CreatedResult($"/api/admin/adminusers/{createResult.Data?.Id}", new
+                {
+                    success = createResult.IsSuccess,
+                    message = createResult.Message,
+                    data = createResult.Data,
+                    timestamp = DateTime.UtcNow,
+                    serverInfo = new { environment = "development", action = "user_created" }
+                });
             }
 
-            return createResult.ToActionResult();
+            return createResult.ToAdminActionResult();
         }
 
         [HttpPut("{id:int}")]
@@ -76,17 +100,23 @@ namespace BidFlow.Controllers
             {
                 var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
                 var result = Result<UpdateUserDto>.Failure(ErrorMessages.ValidationFailed, errors);
-                return result.ToActionResult();
+                return result.ToAdminActionResult();
             }
 
             var updateResult = await _userService.UpdateAsync(id, updateUserDto);
 
             if (!updateResult.IsSuccess && updateResult.Message == ErrorMessages.NotFound)
             {
-                return updateResult.ToNotFoundResult();
+                return new NotFoundObjectResult(new
+                {
+                    success = false,
+                    message = updateResult.Message,
+                    errors = updateResult.Errors,
+                    timestamp = DateTime.UtcNow
+                });
             }
 
-            return updateResult.ToActionResult();
+            return updateResult.ToAdminActionResult();
         }
 
         [HttpDelete("{id:int}")]
@@ -96,10 +126,16 @@ namespace BidFlow.Controllers
 
             if (!deleteResult.IsSuccess && deleteResult.Message == ErrorMessages.NotFound)
             {
-                return deleteResult.ToNotFoundResult();
+                return new NotFoundObjectResult(new
+                {
+                    success = false,
+                    message = deleteResult.Message,
+                    errors = deleteResult.Errors,
+                    timestamp = DateTime.UtcNow
+                });
             }
 
-            return deleteResult.ToActionResult();
+            return deleteResult.ToAdminActionResult();
         }
 
         [HttpPatch("{id:int}/activate")]
@@ -109,10 +145,16 @@ namespace BidFlow.Controllers
 
             if (!activateResult.IsSuccess && activateResult.Message == ErrorMessages.UserNotFound)
             {
-                return activateResult.ToNotFoundResult();
+                return new NotFoundObjectResult(new
+                {
+                    success = false,
+                    message = activateResult.Message,
+                    errors = activateResult.Errors,
+                    timestamp = DateTime.UtcNow
+                });
             }
 
-            return activateResult.ToActionResult();
+            return activateResult.ToAdminActionResult();
         }
 
         [HttpPatch("{id:int}/deactivate")]
@@ -122,24 +164,30 @@ namespace BidFlow.Controllers
 
             if (!deactivateResult.IsSuccess && deactivateResult.Message == ErrorMessages.UserNotFound)
             {
-                return deactivateResult.ToNotFoundResult();
+                return new NotFoundObjectResult(new
+                {
+                    success = false,
+                    message = deactivateResult.Message,
+                    errors = deactivateResult.Errors,
+                    timestamp = DateTime.UtcNow
+                });
             }
 
-            return deactivateResult.ToActionResult();
+            return deactivateResult.ToAdminActionResult();
         }
 
         [HttpGet("check-username/{username}")]
         public async Task<IActionResult> CheckUsername(string username)
         {
             var result = await _userService.IsUsernameExistsAsync(username);
-            return result.ToActionResult();
+            return result.ToAdminActionResult();
         }
 
         [HttpGet("check-email/{email}")]
         public async Task<IActionResult> CheckEmail(string email)
         {
             var result = await _userService.IsEmailExistsAsync(email);
-            return result.ToActionResult();
+            return result.ToAdminActionResult();
         }
 
         [HttpGet("search")]
@@ -155,8 +203,16 @@ namespace BidFlow.Controllers
                 PageSize = pageSize
             };
 
-            var result = await _userService.GetPagedAsync(request);
-            return result.ToActionResult();
+            var validationResult = await _paginationValidator.ValidateAsync(request);
+            if (!validationResult.IsValid)
+            {
+                var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+                var result = Result<PaginationRequestDto>.Failure(ErrorMessages.ValidationFailed, errors);
+                return result.ToAdminActionResult();
+            }
+
+            var searchResult = await _userService.GetPagedAsync(request);
+            return searchResult.ToAdminActionResult();
         }
     }
 }
