@@ -1,4 +1,5 @@
-﻿using BidFlow.Common;
+﻿using BidFlow.Attributes;
+using BidFlow.Common;
 using BidFlow.DTOs.Common;
 using BidFlow.DTOs.User;
 using BidFlow.Services;
@@ -10,7 +11,7 @@ namespace BidFlow.Controllers
 {
     [ApiController]
     [Route("api/admin/[controller]")]
-    [Authorize]
+    [Authorize] // Base authentication required
     public class AdminUsersController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -31,6 +32,7 @@ namespace BidFlow.Controllers
         }
 
         [HttpGet]
+        [RequirePermission("Users.Read")]
         public async Task<IActionResult> GetUsers([FromQuery] PaginationRequestDto request)
         {
             var validationResult = await _paginationValidator.ValidateAsync(request);
@@ -46,6 +48,7 @@ namespace BidFlow.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [RequirePermission("Users.Read")]
         public async Task<IActionResult> GetUser(int id)
         {
             var result = await _userService.GetByIdAsync(id);
@@ -65,6 +68,7 @@ namespace BidFlow.Controllers
         }
 
         [HttpPost]
+        [RequirePermission("Users.Create")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserDto createUserDto)
         {
             var validationResult = await _createUserValidator.ValidateAsync(createUserDto);
@@ -93,6 +97,7 @@ namespace BidFlow.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [RequirePermission("Users.Update")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto updateUserDto)
         {
             var validationResult = await _updateUserValidator.ValidateAsync(updateUserDto);
@@ -120,6 +125,7 @@ namespace BidFlow.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [RequirePermission("Users.Delete")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var deleteResult = await _userService.DeleteAsync(id);
@@ -139,6 +145,7 @@ namespace BidFlow.Controllers
         }
 
         [HttpPatch("{id:int}/activate")]
+        [RequirePermission("Users.Activate")]
         public async Task<IActionResult> ActivateUser(int id)
         {
             var activateResult = await _userService.ActivateUserAsync(id);
@@ -158,6 +165,7 @@ namespace BidFlow.Controllers
         }
 
         [HttpPatch("{id:int}/deactivate")]
+        [RequirePermission("Users.Activate")]
         public async Task<IActionResult> DeactivateUser(int id)
         {
             var deactivateResult = await _userService.DeactivateUserAsync(id);
@@ -177,6 +185,7 @@ namespace BidFlow.Controllers
         }
 
         [HttpGet("check-username/{username}")]
+        [RequirePermission("Users.Read")]
         public async Task<IActionResult> CheckUsername(string username)
         {
             var result = await _userService.IsUsernameExistsAsync(username);
@@ -184,6 +193,7 @@ namespace BidFlow.Controllers
         }
 
         [HttpGet("check-email/{email}")]
+        [RequirePermission("Users.Read")]
         public async Task<IActionResult> CheckEmail(string email)
         {
             var result = await _userService.IsEmailExistsAsync(email);
@@ -191,6 +201,7 @@ namespace BidFlow.Controllers
         }
 
         [HttpGet("search")]
+        [RequirePermission("Users.Read")]
         public async Task<IActionResult> SearchUsers(
             [FromQuery] string searchTerm,
             [FromQuery] int pageNumber = 1,

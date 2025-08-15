@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using BidFlow.Attributes;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using FluentValidation;
 using BidFlow.Services;
@@ -26,6 +27,7 @@ namespace BidFlow.Api.Controllers
         }
 
         [HttpPost("login")]
+        [AllowAnonymous] // Public endpoint
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
             var validationResult = await _loginValidator.ValidateAsync(loginDto);
@@ -41,6 +43,7 @@ namespace BidFlow.Api.Controllers
         }
 
         [HttpPost("register")]
+        [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
             var validationResult = await _registerValidator.ValidateAsync(registerDto);
@@ -56,7 +59,7 @@ namespace BidFlow.Api.Controllers
         }
 
         [HttpPost("logout")]
-        [Authorize]
+        [Authorize] // Basic auth - no specific permission needed
         public async Task<IActionResult> Logout()
         {
             var userIdClaim = User.FindFirst("userId")?.Value;
@@ -71,7 +74,7 @@ namespace BidFlow.Api.Controllers
         }
 
         [HttpPost("change-password")]
-        [Authorize]
+        [RequirePermission("Auth.Password.Change")] // Permission-based authorization
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto changePasswordDto)
         {
             var userIdClaim = User.FindFirst("userId")?.Value;
@@ -90,7 +93,7 @@ namespace BidFlow.Api.Controllers
         }
 
         [HttpGet("profile")]
-        [Authorize]
+        [RequirePermission("Auth.Profile.Read")]
         public async Task<IActionResult> GetProfile()
         {
             var userIdClaim = User.FindFirst("userId")?.Value;
@@ -105,6 +108,7 @@ namespace BidFlow.Api.Controllers
         }
 
         [HttpPost("refresh")]
+        [AllowAnonymous]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto refreshTokenDto)
         {
             var refreshResult = await _authService.RefreshTokenAsync(refreshTokenDto.RefreshToken);
