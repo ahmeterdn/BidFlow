@@ -28,5 +28,7 @@ namespace BidFlow.Entities
 
         
         public virtual ICollection<UserActivityLog> ActivityLogs { get; set; } = new List<UserActivityLog>();
+
+        public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     }
 }
