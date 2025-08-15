@@ -261,7 +261,20 @@ namespace BidFlow.Services
         {
             try
             {
-                return await _userService.GetAuthUserByIdAsync(userId);
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+
+                if (user == null)
+                {
+                    return Result<AuthUserDto>.Failure(ErrorMessages.UserNotFound);
+                }
+
+                if (!user.IsActive)
+                {
+                    return Result<AuthUserDto>.Failure(ErrorMessages.UserInactive);
+                }
+
+                var authUserDto = _mapper.Map<AuthUserDto>(user);
+                return Result<AuthUserDto>.Success(authUserDto, SuccessMessages.DataRetrieved);
             }
             catch (Exception ex)
             {
